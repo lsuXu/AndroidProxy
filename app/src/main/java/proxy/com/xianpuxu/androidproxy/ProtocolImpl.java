@@ -18,8 +18,11 @@ public class ProtocolImpl implements Protocol {
 
     private final int capacity ;
 
-    public ProtocolImpl(int capacity) {
+    private final TCPClient tcpClient ;
+
+    public ProtocolImpl(int capacity,TCPClient tcpClient) {
         this.capacity = capacity;
+        this.tcpClient = tcpClient ;
     }
 
     /**
@@ -59,21 +62,23 @@ public class ProtocolImpl implements Protocol {
 
             // 控制台打印出来
             Log.d(TAG,String.format("接收到来自%s的信息：%s",socketChannel.socket().getRemoteSocketAddress(),receivedString));
-            // 准备发送的文本
-            String sendString = "你好,客户端. @" + new Date().toString()
-                    + "，已经收到你的信息" + receivedString;
-            buffer = ByteBuffer.wrap(sendString.getBytes("UTF-16"));
-            socketChannel.write(buffer);
+
+            //数据转发到代理服务器
+            tcpClient.sendMsg(receivedString);
+
             //设置为下一次读/写作准备
-            key.interestOps(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+            key.interestOps(SelectionKey.OP_READ);
         }else{//未读到数据，则关闭连接
-            Log.d(TAG,"无数据可读，关闭连接");
-            socketChannel.close();
+            Log.d(TAG,"无数据可读，监听可写");
+            key.interestOps(SelectionKey.OP_WRITE);
         }
     }
 
     @Override
     public void handleWrite(SelectionKey key) throws IOException {
-
+        SocketChannel socketChannel = (SocketChannel) key.channel();
+        Log.i(TAG,socketChannel.toString() + "可写");
+        Mapping.localChannelMap.put(socketChannel.toString(),socketChannel);
+        socketChannel.close();
     }
 }

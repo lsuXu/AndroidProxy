@@ -23,6 +23,8 @@ public class ProxyServer extends Service {
 
     private ServerSocketChannel serverSocketChannel ;
 
+    private TCPClient client ;
+
     private ExecutorService executors = Executors.newFixedThreadPool(5);
 
     @Override
@@ -71,12 +73,19 @@ public class ProxyServer extends Service {
                         if(selector.select(3000) == 0){
                             continue;
                         }
+                        //初始化与服务端的代理服务器连接
+                        if(client == null){
+                            client = new TCPClient("47.102.125.88",7071);
+                        }
+
                         Iterator<SelectionKey> keyIter = selector.selectedKeys().iterator();
                         while (keyIter.hasNext()){
+
+                            Log.i(TAG,"接收到新请求，准备处理");
                             SelectionKey key = keyIter.next();
 
                             //生成缓冲区为1024byte的
-                            Protocol protocol = new ProtocolImpl(1024);
+                            Protocol protocol = new ProtocolImpl(1024,client);
 
                             if (key.isAcceptable()) {
                                 // 有客户端连接请求时
