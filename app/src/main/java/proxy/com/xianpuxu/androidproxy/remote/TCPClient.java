@@ -1,4 +1,4 @@
-package proxy.com.xianpuxu.androidproxy;
+package proxy.com.xianpuxu.androidproxy.remote;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import java.util.concurrent.ExecutorService;
 
 /**
  * 网络访问类，连接到代理服务器
@@ -21,9 +22,12 @@ public class TCPClient {
 
     private Selector selector ;
 
-    public TCPClient(String remoteIp, int remotePort) {
+    private ExecutorService executorService ;
+
+    public TCPClient(String remoteIp, int remotePort , ExecutorService executorService) {
         this.remoteIp = remoteIp;
         this.remotePort = remotePort;
+        this.executorService = executorService ;
         try {
             initChannel();
         } catch (IOException e) {
@@ -44,8 +48,8 @@ public class TCPClient {
         socketChannel.configureBlocking(false);
         //将信道通道注册到选择器
         socketChannel.register(selector, SelectionKey.OP_READ);
-        new Thread(new TCPClientReader(selector)).start();
 
+        executorService.execute(new TCPClientReader(selector));
     }
 
     public void sendMsg(String data) throws IOException {
@@ -54,4 +58,9 @@ public class TCPClient {
         socketChannel.write(buffer);
     }
 
+    public void release() throws IOException {
+        if(socketChannel != null){
+            socketChannel.close();
+        }
+    }
 }

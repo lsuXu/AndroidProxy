@@ -1,4 +1,4 @@
-package proxy.com.xianpuxu.androidproxy;
+package proxy.com.xianpuxu.androidproxy.local;
 
 import android.app.Service;
 import android.content.Intent;
@@ -15,11 +15,13 @@ import java.util.Iterator;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import proxy.com.xianpuxu.androidproxy.Protocol;
+import proxy.com.xianpuxu.androidproxy.ProtocolImpl;
+import proxy.com.xianpuxu.androidproxy.remote.TCPClient;
+
 public class ProxyServer extends Service {
 
     private static final String TAG = ProxyServer.class.getSimpleName() ;
-
-    private Thread serverThread ;
 
     private ServerSocketChannel serverSocketChannel ;
 
@@ -35,7 +37,8 @@ public class ProxyServer extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        initServerSocket();
+        initRemoteClient();
+        initLocalClient();
     }
 
     @Override
@@ -45,12 +48,12 @@ public class ProxyServer extends Service {
     }
 
     /**
-     * 初始化socketServer，开启监听
+     * 初始化本地socketServer，开启监听
      * @throws IOException
      */
-    private void initServerSocket() {
+    private void initLocalClient() {
 
-        serverThread = new Thread(new Runnable() {
+        executors.execute(new Runnable() {
             @Override
             public void run() {
                 try {
@@ -58,13 +61,13 @@ public class ProxyServer extends Service {
                     Selector selector = Selector.open();
                     //创建新的服务器连接通道
                     serverSocketChannel = ServerSocketChannel.open();
-                    //待监听的地址
+                    //待监听的本地地址以及端口，此处只监听本地端口
                     SocketAddress socketAddress = new InetSocketAddress(8090);
                     //绑定监听的地址
                     serverSocketChannel.socket().bind(socketAddress);
-
                     //设置为非阻塞模式
                     serverSocketChannel.configureBlocking(false);
+                    //将通道注册到调度器
                     if (!serverSocketChannel.isRegistered()) {
                         //向调度器注册，该通道关注的是新的连接请求
                         serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
@@ -73,16 +76,12 @@ public class ProxyServer extends Service {
                         if(selector.select(3000) == 0){
                             continue;
                         }
-                        //初始化与服务端的代理服务器连接
-                        if(client == null){
-                            client = new TCPClient("47.102.125.88",7071);
-                        }
 
                         Iterator<SelectionKey> keyIter = selector.selectedKeys().iterator();
                         while (keyIter.hasNext()){
 
-                            Log.i(TAG,"接收到新请求，准备处理");
                             SelectionKey key = keyIter.next();
+                            Log.i(TAG,"接收到新请求，准备处理 + key =" + key);
 
                             //生成缓冲区为1024byte的
                             Protocol protocol = new ProtocolImpl(1024,client);
@@ -111,12 +110,28 @@ public class ProxyServer extends Service {
                 }
             }
         });
-        serverThread.start();
+    }
+
+    private void initRemoteClient(){
+        //初始化与服务端的代理服务器连接
+        if(client == null){
+            executors.execute(new Runnable() {
+                @Override
+                public void run() {
+                    client = new TCPClient("47.102.125.88",7001,executors);
+                }
+            });
+        }
     }
 
     private void closeServerSocket(){
         try {
-            serverSocketChannel.close();
+            if(serverSocketChannel != null) {
+                serverSocketChannel.close();
+            }
+            if(client != null){
+                client.release();
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }

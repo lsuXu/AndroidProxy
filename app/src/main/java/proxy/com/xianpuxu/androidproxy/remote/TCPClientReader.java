@@ -1,4 +1,4 @@
-package proxy.com.xianpuxu.androidproxy;
+package proxy.com.xianpuxu.androidproxy.remote;
 
 import android.util.Log;
 
@@ -32,12 +32,12 @@ public class TCPClientReader implements Runnable{
                         buffer.flip();// 调用此方法为一系列通道写入或相对获取 操作做好准备
                         int size = socketChannel.read(buffer);
                         String receiverData = new String(buffer.array());
-                        Log.d(TAG,String.format("收到了来自代理服务器%s的响应数据：%s",socketChannel.socket().getRemoteSocketAddress(),receiverData));
+//                        Log.d(TAG,String.format("收到了来自代理服务器%s的响应数据,大小%s：%s", socketChannel.socket().getRemoteSocketAddress(),size,receiverData));
                         //为下一次读取数据做准备
 //                            selectionKey.interestOps(SelectionKey.OP_READ);
-                        if(size <= 0){
+                        /*if(size <= 0){
                             socketChannel.close();
-                        }
+                        }*/
                     }
                     //删除正在处理的SelectionKey
                     selectionKeys.remove(selectionKey);

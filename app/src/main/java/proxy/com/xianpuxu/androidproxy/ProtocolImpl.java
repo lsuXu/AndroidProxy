@@ -7,7 +7,8 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.Date;
+
+import proxy.com.xianpuxu.androidproxy.remote.TCPClient;
 
 /**
  * 处理内部请求
@@ -56,19 +57,20 @@ public class ProtocolImpl implements Protocol {
         if(size >  0){
             // 将缓冲区准备为数据传出状态
             buffer.flip();
-            // 将字节转化为为UTF-16的字符串
-//            String receivedString = Charset.forName("UTF-16").newDecoder().decode(buffer).toString();
+
             String receivedString = new String(buffer.array());
 
             // 控制台打印出来
             Log.d(TAG,String.format("接收到来自%s的信息：%s",socketChannel.socket().getRemoteSocketAddress(),receivedString));
 
-            //数据转发到代理服务器
-            tcpClient.sendMsg(receivedString);
+            if(tcpClient != null) {
+                //数据转发到代理服务器
+                tcpClient.sendMsg(receivedString);
+            }
 
             //设置为下一次读/写作准备
             key.interestOps(SelectionKey.OP_READ);
-        }else{//未读到数据，则关闭连接
+        }else{
             Log.d(TAG,"无数据可读，监听可写");
             key.interestOps(SelectionKey.OP_WRITE);
         }
