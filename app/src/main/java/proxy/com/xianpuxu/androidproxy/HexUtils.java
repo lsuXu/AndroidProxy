@@ -222,8 +222,8 @@ public class HexUtils {
         }
         byte [] result = new byte[2];
         int portValue = Integer.valueOf(port);
-        result[0] = (byte) (portValue/255);
-        result[1] = (byte) (portValue%255);
+        result[0] = (byte) (portValue/256);
+        result[1] = (byte) (portValue%256);
         return result ;
     }
 

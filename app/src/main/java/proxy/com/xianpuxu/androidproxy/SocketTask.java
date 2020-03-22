@@ -14,6 +14,10 @@ import java.net.UnknownHostException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import proxy.com.xianpuxu.androidproxy.protocol.HttpImpl;
+import proxy.com.xianpuxu.androidproxy.protocol.HttpsImpl;
+import proxy.com.xianpuxu.androidproxy.protocol.Protocal;
+
 public class SocketTask implements Runnable {
 
     private static final String TAG = SocketTask.class.getSimpleName();
@@ -41,151 +45,30 @@ public class SocketTask implements Runnable {
     private void connectRemote() throws IOException {
         //建立和代理服务器的连接
         remoteSocket = new Socket();
-        remoteSocket.connect(new InetSocketAddress("149.129.99.37",8088));
+        remoteSocket.connect(new InetSocketAddress("47.102.125.88",8090));
 
-        byte[] data = new byte[300];
-        int length ;
+        //获取数据包
+        byte[] requestData = getStreamData(localSocket);
+        String requestStr = new String(requestData);
 
         //若连接建立，对照协议进行交互
         if(remoteSocket.isConnected()){
-            InputStream inputStream = remoteSocket.getInputStream();
-            OutputStream outputStream = remoteSocket.getOutputStream();
-
-            printData(new byte[]{0x05,0x01,0x00},new byte[]{0x05,0x01,0x00}.length,true);
-
-            //验证,告诉服务端：客户端只支持无验证需求
-            //数据组成：协议版本，支持的验证数量，验证方式
-            outputStream.write(new byte[]{0x05,0x01,0x00});
-            outputStream.flush();
-
-            length = inputStream.read(data);
-            printData(data,length,false);
-
-            if(data[1] == 0xFF){
-                //无可验证方式
+            //根据第一包获取协议类型
+            Protocal protocal = getProtocalImpl(requestStr);
+            //身份验证
+            boolean checkIdentity = protocal.checkIdentity();
+            if(!checkIdentity){
                 release();
                 return;
             }
-
-            //获取数据包
-            byte[] requestData = getStreamData(localSocket);
-            String requestStr = new String(requestData);
-            String targetHost = getHost(requestStr);
-            String targetPort = getPort(requestStr);
-
-            //ip + port方式
-            if(targetHost != null) {
-
-                //建立代理连接
-                byte[] host = HexUtils.ipToByte(targetHost);
-                byte[] port = HexUtils.portToByte(targetPort);
-                //数据说明：协议版本，请求的类型，保留字段，地址类型，地址数据，地址端口
-                byte[] connectInstruct = new byte[]{0x05, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-                //设置目标ip
-                System.arraycopy(host, 0, connectInstruct, 4, 4);
-                //设置目标端口
-                System.arraycopy(port, 0, connectInstruct, 8, 2);
-
-                printData(connectInstruct, connectInstruct.length,true);
-
-                outputStream.write(connectInstruct);
-                outputStream.flush();
-
-                //接收建立代理连接返回值
-                length = inputStream.read(data);
-                printData(data, length,false);
-                //0x00标识建立成功
-                if (data[1] != 0x00) {
-                    //建立连接失败
-                    release();
-                    return;
-                }
-                printData(requestData, requestData.length,true);
-
-                //数据包转发
-                outputStream.write(requestData);
-                outputStream.flush();
-
-                length = inputStream.read(data);
-                printData(data, length,false);
-
-                if(length > 0) {
-                    printData(data, length,false);
-                    byte[] result = new byte[length];
-                    System.arraycopy(data, 0, result, 0, length);
-
-                    //写入数据返回
-                    writeResultData(result);
-
-                }
-
+            //建立连接
+            boolean checkConnect = protocal.checkConnect();
+            if(!checkConnect){
                 release();
-            }else{//域名 + 端口方式
-                //解析目标域名
-                String domain = getDomain(requestStr);
-                //解析目标端口
-                String port = getDefaultPort(requestStr);
-
-                Log.i(TAG,String.format("target domain = %s , port = %s",domain,port));
-
-                if(domain == null || port == null){
-                    release();
-                    return;
-                }
-                //目标IP字节流
-                byte[] domainBytes =domain.getBytes();
-
-                //目标端口字节流
-                byte[] portBytes =HexUtils.portToByte(port);
-
-                //数据说明：协议版本，请求的类型，保留字段，地址类型，地址数据，地址端口
-                byte[] prefix = new byte[]{0x05, 0x01, 0x00, 0x03, (byte) domainBytes.length};
-
-                //连接指令
-                byte[] connectInstruct = new byte[domainBytes.length + prefix.length + 2];
-
-                //设置请求头部协议信息
-                System.arraycopy(prefix, 0, connectInstruct, 0, prefix.length);
-                //设置目标域名
-                System.arraycopy(domainBytes, 0, connectInstruct, prefix.length, domainBytes.length);
-                //设置域名端口
-                System.arraycopy(portBytes, 0, connectInstruct, domainBytes.length + prefix.length, portBytes.length);
-
-                printData(connectInstruct, connectInstruct.length,true);
-
-                outputStream.write(connectInstruct);
-                outputStream.flush();
-
-                //接收建立代理连接返回值
-                length = inputStream.read(data);
-                printData(data, length,false);
-                //0x00标识建立成功
-                if (data[1] != 0x00) {
-                    //建立连接失败
-                    release();
-                    return;
-                }
-                printData(requestData, requestData.length,true);
-
-                //数据包转发
-                outputStream.write(requestData);
-                outputStream.flush();
-
-                //接收结果数据
-                length = inputStream.read(data);
-                if(length > 0) {
-                    printData(data, length,false);
-                    byte[] result = new byte[length];
-                    System.arraycopy(data, 0, result, 0, length);
-
-                    //写入数据返回
-                    writeResultData(result);
-
-                }
-
-                release();
-
-            }
+                return;
+            }//转发数据
+            protocal.transpondData();
+            release();
         }else{
             release();
         }
@@ -203,19 +86,6 @@ public class SocketTask implements Runnable {
         return packageData;
     }
 
-    /**
-     * byte数据打印方法
-     * @param data
-     * @param length
-     */
-    private void printData(byte[] data ,int length , boolean isSend){
-        StringBuilder sb = new StringBuilder();
-        for(int index = 0 ; index < length ;index ++){
-            sb.append(data[index]).append(" ");
-        }
-        Log.i(TAG,String.format("%s %s",isSend?"send":"receive",sb.toString()));
-        Log.i(TAG,String.format("%s %s",isSend?"send":"receive",new String(data)));
-    }
 
     /**
      * 获取输入流的内容信息
@@ -329,6 +199,14 @@ public class SocketTask implements Runnable {
         }
         if(remoteSocket != null && remoteSocket.isConnected()){
             remoteSocket.close();
+        }
+    }
+
+    public Protocal getProtocalImpl(String requestData){
+        if(requestData.contains("CONNECT")){
+            return new HttpsImpl(remoteSocket,localSocket,requestData);
+        }else{
+            return new HttpImpl(remoteSocket,localSocket,requestData);
         }
     }
 
