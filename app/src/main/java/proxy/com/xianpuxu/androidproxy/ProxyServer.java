@@ -47,7 +47,6 @@ public class ProxyServer extends Service {
         registerBroadcast();
         initServerSocket();
 
-
     }
 
     @Override

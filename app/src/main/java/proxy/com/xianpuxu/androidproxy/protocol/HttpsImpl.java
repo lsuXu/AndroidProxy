@@ -2,18 +2,16 @@ package proxy.com.xianpuxu.androidproxy.protocol;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import proxy.com.xianpuxu.androidproxy.HexUtils;
-import proxy.com.xianpuxu.androidproxy.TestServer;
+import proxy.com.xianpuxu.androidproxy.io.FinishCallback;
+import proxy.com.xianpuxu.androidproxy.io.ReadRunnable;
+import proxy.com.xianpuxu.androidproxy.tools.AnalysisUtil;
+import proxy.com.xianpuxu.androidproxy.tools.HexUtils;
 
 /**
  * Https处理，转发数据包前需要处理Connect请求
  */
-public class HttpsImpl extends Protocal{
+public class HttpsImpl extends Protocol {
 
     public HttpsImpl(Socket remoteSocket, Socket localSocket, String data) {
         super(remoteSocket, localSocket, data);
@@ -31,8 +29,8 @@ public class HttpsImpl extends Protocal{
 
     @Override
     byte[] getConnectData() throws IOException {
-        String domain = getConnectIp();
-        String port = getConnectPort();
+        String domain = AnalysisUtil.getConnectIp(receivedData);
+        String port = AnalysisUtil.getConnectPort(receivedData);
         if(domain != null && port != null) {
             //目标IP字节流
             byte[] domainBytes = domain.getBytes();
@@ -54,41 +52,25 @@ public class HttpsImpl extends Protocal{
         }
     }
 
-    @Override
-    byte[] getTranspondData() throws IOException {
-        String connectTime = new SimpleDateFormat("HH:mm:ss.SSS").format(new Date());
-        String finishTime = new SimpleDateFormat("HH:mm:ss.SSS").format(new Date());
-        /*String responseData = String.format(
-                " HTTP/1.1 200 Connection Established\n" +
-                " FiddlerGateway: Direct\n" +
-                " StartTime: %s\n" +
-                " Connection: Keep-Alive\n" +
-                " EndTime: %s\n" +
-                " ClientToServerBytes: %s\n" +
-                " ServerToClientBytes: 0",connectTime,finishTime,receivedData.length());*/
+    /**
+     * 预先处理Https的Connect请求
+     * @throws IOException
+     */
+    void connectResponse() throws IOException {
         String responseData = String.format(
                 "HTTP/1.1 200 Connection Established\r\n\r\n");
         localSocket.getOutputStream().write(responseData.getBytes());
         localSocket.getOutputStream().flush();
-        byte[] localData = readLocalReceivedData();
-        return localData;
     }
 
-    private String getConnectIp(){
-        Pattern pattern = Pattern.compile("CONNECT ([A-Za-z0-9_.]+):([0-9]*) (HTTP/1.1|HTTP/1.0)");
-        Matcher matcher = pattern.matcher(receivedData);
-        if(matcher.find()){
-            return matcher.group(1);
-        }
-        return null ;
+    @Override
+    public void transpondData(FinishCallback finishCallback) throws IOException {
+        //处理https的connect请求
+        connectResponse();
+        //交换本地数据
+        new ReadRunnable(localSocket.getInputStream(),remoteSocket.getOutputStream(),finishCallback).start();
+        //接收代理服务器返回的数据
+        new ReadRunnable(remoteSocket.getInputStream(),localSocket.getOutputStream()).start();
     }
 
-    private String getConnectPort(){
-        Pattern pattern = Pattern.compile("CONNECT ([A-Za-z0-9_.]+):([0-9]*) (HTTP/1.1|HTTP/1.0)");
-        Matcher matcher = pattern.matcher(receivedData);
-        if(matcher.find()){
-            return matcher.group(2);
-        }
-        return null ;
-    }
 }

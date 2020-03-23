@@ -2,12 +2,12 @@ package proxy.com.xianpuxu.androidproxy.protocol;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import proxy.com.xianpuxu.androidproxy.io.FinishCallback;
+import proxy.com.xianpuxu.androidproxy.io.ReadRunnable;
+import proxy.com.xianpuxu.androidproxy.tools.AnalysisUtil;
+import proxy.com.xianpuxu.androidproxy.tools.HexUtils;
 
-import proxy.com.xianpuxu.androidproxy.HexUtils;
-
-public class HttpImpl extends Protocal{
+public class HttpImpl extends Protocol {
 
     public HttpImpl(Socket remoteSocket, Socket localSocket, String data) {
         super(remoteSocket, localSocket, data);
@@ -20,8 +20,8 @@ public class HttpImpl extends Protocal{
 
     @Override
     byte[] getConnectData() throws IOException {
-        String domain = getDomain(receivedData);
-        String port = getDefaultPort(receivedData);
+        String domain = AnalysisUtil.getHttpDomain(receivedData);
+        String port = AnalysisUtil.getHttpPort(receivedData);
         if(domain != null && port != null) {
             //目标IP字节流
             byte[] domainBytes = domain.getBytes();
@@ -44,39 +44,14 @@ public class HttpImpl extends Protocal{
     }
 
     @Override
-    byte[] getTranspondData() throws IOException {
-        return receivedData.getBytes();
+    public void transpondData(FinishCallback finishCallback) throws IOException {
+        //先把之前读取过的一包数据发送出去
+        remoteSocket.getOutputStream().write(receivedData.getBytes());
+        remoteSocket.getOutputStream().flush();
+        //交换本地数据
+        new ReadRunnable(localSocket.getInputStream(),remoteSocket.getOutputStream(),finishCallback ).start();
+        //接收代理服务器返回的数据
+        new ReadRunnable(remoteSocket.getInputStream(), localSocket.getOutputStream()).start();
     }
 
-    /**
-     * 解析域名
-     * @param requestStr
-     * @return
-     */
-    private String getDomain(String requestStr){
-        Pattern pattern = Pattern.compile("(GET |POST )((http|https)://([A-Za-z0-9_.]+))/");
-        Matcher matcher = pattern.matcher(requestStr);
-        if(matcher.find()){
-            //调用group方法之前，必须先调用find方法，否则会报错
-            return matcher.group(4);
-        }else{
-            return null ;
-        }
-    }
-
-    /**
-     * 解析默认端口
-     * @param requestStr
-     * @return
-     */
-    private String getDefaultPort(String requestStr){
-        Pattern pattern = Pattern.compile("(GET |POST )((http|https)://([A-Za-z0-9_.]+))/");
-        Matcher matcher = pattern.matcher(requestStr);
-        if(matcher.find()){
-            //调用group方法之前，必须先调用find方法，否则会报错
-            return matcher.group(3).equals("http")?"80":"443";
-        }else{
-            return null ;
-        }
-    }
 }

@@ -6,18 +6,20 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
 
+import proxy.com.xianpuxu.androidproxy.io.FinishCallback;
+
 /**
  * Socekt5协议步骤
  */
-public abstract class Protocal {
+public abstract class Protocol {
 
-    private static final String TAG = Protocal.class.getSimpleName();
+    private static final String TAG = Protocol.class.getSimpleName();
 
     final Socket remoteSocket,localSocket;
 
     final String receivedData ;
 
-    public Protocal(Socket remoteSocket, Socket localSocket,String data) {
+    public Protocol(Socket remoteSocket, Socket localSocket, String data) {
         this.remoteSocket = remoteSocket;
         this.localSocket = localSocket;
         this.receivedData = data ;
@@ -37,12 +39,6 @@ public abstract class Protocal {
      */
     abstract byte[] getConnectData() throws IOException;
 
-    /**
-     * 获取需要转发的数据
-     * @return
-     * @throws IOException
-     */
-    abstract byte[] getTranspondData() throws IOException ;
 
     /**
      * 第一步：身份验证
@@ -87,24 +83,7 @@ public abstract class Protocal {
      * 第三步，交换数据
      * @throws IOException
      */
-    public void transpondData() throws IOException{
-        byte[] data = getTranspondData();
-        if(data != null) {
-            //打印
-            printData(data, true);
-            //获取需要转发的数据
-            remoteSocket.getOutputStream().write(data);
-            remoteSocket.getOutputStream().flush();
-            //接收转发处理后的数据
-            byte[] responseData = getRemoteReceivedData();
-            //打印
-            printData(responseData, false);
-            if (responseData != null) {
-                //转发数据
-                localSocket.getOutputStream().write(responseData);
-            }
-        }
-    }
+    public abstract void transpondData(FinishCallback finishCallback) throws IOException;
 
 
     /**
@@ -127,29 +106,10 @@ public abstract class Protocal {
     }
 
     /**
-     * 获取接收到的来自代理服务器的数据
-     * @return
-     * @throws IOException
-     */
-    byte[] readLocalReceivedData() throws IOException{
-        byte[] data = new byte[1024];
-        int length;
-        InputStream inputStream = localSocket.getInputStream();
-        if((length = inputStream.read(data))> 0){
-            Log.i(TAG,String.format("local received length = %s",length));
-            byte[] result = new byte[length];
-            System.arraycopy(data,0,result,0,length);
-            return result ;
-        }else{
-            return new byte[0] ;
-        }
-    }
-
-    /**
      * byte数据打印方法
      * @param data
      */
-    private void printData(byte[] data, boolean isSend){
+    protected void printData(byte[] data, boolean isSend){
         if(data != null) {
             StringBuilder sb = new StringBuilder();
             for (int index = 0; index < data.length; index++) {
