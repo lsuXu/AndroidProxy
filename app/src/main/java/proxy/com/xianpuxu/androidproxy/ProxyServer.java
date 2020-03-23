@@ -84,8 +84,10 @@ public class ProxyServer extends Service {
                         if (serverSocket == null || serverSocket.isClosed()) {
                             serverSocket = new ServerSocket(9089);
                         }
-                        //该方法会阻塞IO线层，直到收到请求后，才会获取到连接
-                        executors.execute(new SocketTask(serverSocket.accept()));
+                        while(true) {
+                            //该方法会阻塞IO线层，直到收到请求后，才会获取到连接
+                            executors.execute(new SocketTask(serverSocket.accept()));
+                        }
                 }catch (Exception e){
                     e.printStackTrace();
                 }
@@ -130,7 +132,7 @@ public class ProxyServer extends Service {
             @Override
             public void onReceive(Context context, Intent intent) {
                 Log.i(TAG,"ready to accept one");
-                acceptOne();
+//                acceptOne();
             }
         };
         this.registerReceiver(sendMsgReceive,intentFilter);

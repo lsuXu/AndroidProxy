@@ -96,19 +96,15 @@ public class SocketTask implements Runnable {
     private byte[] getStreamData(Socket localSocket) throws IOException{
         InputStream inputStream = localSocket.getInputStream();
         int countLength = 0 ,length = 0;
-        byte[] data = new byte[1024], resultData = null;
+        byte[] data = new byte[1024], resultData = new byte[0];
         if ((length = inputStream.read(data)) > 0){
             countLength = countLength + length ;
             //生成一个完整长度的流
             resultData = new byte[countLength];
             System.arraycopy(data,0,resultData,countLength - length,length);
         }
-        if(resultData != null) {
-            String str = new String(resultData);
-            Log.d(TAG, String.format("socket received \n\r %s", str));
-        }else{
-            Log.d(TAG, String.format("socket received nothing"));
-        }
+        String str = new String(resultData);
+        Log.d(TAG, String.format("socket received \n\r %s", str));
         return resultData ;
     }
 
