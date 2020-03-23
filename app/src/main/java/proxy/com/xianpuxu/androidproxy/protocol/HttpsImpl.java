@@ -58,16 +58,16 @@ public class HttpsImpl extends Protocal{
     byte[] getTranspondData() throws IOException {
         String connectTime = new SimpleDateFormat("HH:mm:ss.SSS").format(new Date());
         String finishTime = new SimpleDateFormat("HH:mm:ss.SSS").format(new Date());
-        TestServer testServer = new TestServer(getConnectIp(),Integer.valueOf(getConnectPort()));
-        testServer.connect(receivedData.getBytes());
-        String responseData = String.format(
+        /*String responseData = String.format(
                 " HTTP/1.1 200 Connection Established\n" +
                 " FiddlerGateway: Direct\n" +
                 " StartTime: %s\n" +
                 " Connection: Keep-Alive\n" +
                 " EndTime: %s\n" +
                 " ClientToServerBytes: %s\n" +
-                " ServerToClientBytes: 0",connectTime,finishTime,receivedData.length());
+                " ServerToClientBytes: 0",connectTime,finishTime,receivedData.length());*/
+        String responseData = String.format(
+                "HTTP/1.1 200 Connection Established\r\n\r\n");
         localSocket.getOutputStream().write(responseData.getBytes());
         localSocket.getOutputStream().flush();
         byte[] localData = readLocalReceivedData();

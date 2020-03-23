@@ -132,7 +132,7 @@ public abstract class Protocal {
      * @throws IOException
      */
     byte[] readLocalReceivedData() throws IOException{
-        byte[] data = new byte[10240];
+        byte[] data = new byte[1024];
         int length;
         InputStream inputStream = localSocket.getInputStream();
         if((length = inputStream.read(data))> 0){
