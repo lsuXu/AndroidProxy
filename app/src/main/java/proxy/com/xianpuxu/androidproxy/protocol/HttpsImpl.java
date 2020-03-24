@@ -56,7 +56,7 @@ public class HttpsImpl extends Protocol {
      * 预先处理Https的Connect请求
      * @throws IOException
      */
-    void connectResponse() throws IOException {
+    private void connectResponse() throws IOException {
         String responseData = String.format(
                 "HTTP/1.1 200 Connection Established\r\n\r\n");
         localSocket.getOutputStream().write(responseData.getBytes());
@@ -70,7 +70,7 @@ public class HttpsImpl extends Protocol {
         //交换本地数据
         new ReadRunnable(localSocket.getInputStream(),remoteSocket.getOutputStream(),finishCallback).start();
         //接收代理服务器返回的数据
-        new ReadRunnable(remoteSocket.getInputStream(),localSocket.getOutputStream()).start();
+        new ReadRunnable(remoteSocket.getInputStream(),localSocket.getOutputStream(),finishCallback).start();
     }
 
 }

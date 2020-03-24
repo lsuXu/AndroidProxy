@@ -116,7 +116,6 @@ public abstract class Protocol {
                 sb.append(data[index]).append(" ");
             }
             Log.i(TAG, String.format("%s %s", isSend ? "send" : "receive", sb.toString()));
-            Log.i(TAG, String.format("%s %s", isSend ? "send" : "receive", new String(data)));
         }else{
             Log.i(TAG,String.format("%s %s", isSend ? "send" : "receive", "null"));
         }

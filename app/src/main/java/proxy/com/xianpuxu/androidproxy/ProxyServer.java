@@ -14,19 +14,21 @@ import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.ServerSocket;
-import java.net.Socket;
-import java.nio.channels.Selector;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * 代理核心服务，运行在后台，监听端口
+ */
 public class ProxyServer extends Service {
 
     private static final String TAG = ProxyServer.class.getSimpleName() ;
 
-    ServerSocket serverSocket ;
+    //监听端口
+    private static final int LISTENER_PORT = 9089 ;
+
+    private ServerSocket serverSocket ;
 
     private ExecutorService executors = Executors.newFixedThreadPool(15);
 
@@ -80,13 +82,13 @@ public class ProxyServer extends Service {
             @Override
             public void run() {
                 try {
-                        if (serverSocket == null || serverSocket.isClosed()) {
-                            serverSocket = new ServerSocket(9089);
-                        }
-                        while(true) {
-                            //该方法会阻塞IO线层，直到收到请求后，才会获取到连接
-                            executors.execute(new SocketTask(serverSocket.accept()));
-                        }
+                    if (serverSocket == null || serverSocket.isClosed()) {
+                        serverSocket = new ServerSocket(LISTENER_PORT);
+                    }
+                    while(true) {
+                        //该方法会阻塞IO线层，直到收到请求后，才会获取到连接
+                        executors.execute(new SocketTask(serverSocket.accept()));
+                    }
                 }catch (Exception e){
                     e.printStackTrace();
                 }

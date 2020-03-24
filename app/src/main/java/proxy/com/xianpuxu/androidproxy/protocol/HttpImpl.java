@@ -7,6 +7,9 @@ import proxy.com.xianpuxu.androidproxy.io.ReadRunnable;
 import proxy.com.xianpuxu.androidproxy.tools.AnalysisUtil;
 import proxy.com.xianpuxu.androidproxy.tools.HexUtils;
 
+/**
+ * http协议处理方式
+ */
 public class HttpImpl extends Protocol {
 
     public HttpImpl(Socket remoteSocket, Socket localSocket, String data) {
@@ -51,7 +54,7 @@ public class HttpImpl extends Protocol {
         //交换本地数据
         new ReadRunnable(localSocket.getInputStream(),remoteSocket.getOutputStream(),finishCallback ).start();
         //接收代理服务器返回的数据
-        new ReadRunnable(remoteSocket.getInputStream(), localSocket.getOutputStream()).start();
+        new ReadRunnable(remoteSocket.getInputStream(), localSocket.getOutputStream(),finishCallback).start();
     }
 
 }
