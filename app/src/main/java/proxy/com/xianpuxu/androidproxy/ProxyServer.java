@@ -14,9 +14,17 @@ import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import proxy.com.xianpuxu.androidproxy.io.ConnectThread;
 
 /**
  * 代理核心服务，运行在后台，监听端口
@@ -25,12 +33,18 @@ public class ProxyServer extends Service {
 
     private static final String TAG = ProxyServer.class.getSimpleName() ;
 
-    //监听端口
+    //默认监听端口
     private static final int LISTENER_PORT = 9089 ;
 
-    private ServerSocket serverSocket ;
+    //本地监听地址
+    private InetSocketAddress localAddress ;
 
-    private ExecutorService executors = Executors.newFixedThreadPool(15);
+    private Selector selector ;
+
+    private ServerSocketChannel serverSocketChannel ;
+
+    private ConnectThread connectThread ;
+
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -47,7 +61,14 @@ public class ProxyServer extends Service {
         }
 
         registerBroadcast();
-        initServerSocket();
+        try {
+            initServerSocket();
+
+            connectThread = new ConnectThread(selector);
+            connectThread.start();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
     }
 
@@ -55,46 +76,49 @@ public class ProxyServer extends Service {
     public void onDestroy() {
         super.onDestroy();
         unRegisterBroadcast();
-        closeServerSocket();
+        try {
+            closeServerSocket();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
      * 初始化socketServer，开启监听
      * @throws IOException
      */
-    private void initServerSocket() {
-        //接收一个请求
-        acceptOne();
-    }
-
-    private void closeServerSocket(){
-        try {
-            if(serverSocket != null) {
-                serverSocket.close();
+    private void initServerSocket() throws IOException{
+        if(selector == null){
+            selector = Selector.open();
+        }
+        if(localAddress == null){
+            localAddress = new InetSocketAddress(LISTENER_PORT);
+        }
+        if(serverSocketChannel == null){
+            serverSocketChannel = ServerSocketChannel.open();
+            serverSocketChannel.socket().bind(localAddress);
+            serverSocketChannel.configureBlocking(false);
+            if(!serverSocketChannel.isRegistered()) {
+                serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
             }
-        } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 
-    private void acceptOne(){
-        executors.execute(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    if (serverSocket == null || serverSocket.isClosed()) {
-                        serverSocket = new ServerSocket(LISTENER_PORT);
-                    }
-                    while(true) {
-                        //该方法会阻塞IO线层，直到收到请求后，才会获取到连接
-                        executors.execute(new SocketTask(serverSocket.accept()));
-                    }
-                }catch (Exception e){
-                    e.printStackTrace();
-                }
-            }
-        });
+
+    /**
+     * 关闭监听器
+     */
+    private void closeServerSocket() throws IOException{
+        if(serverSocketChannel != null) {
+            serverSocketChannel.close();
+            serverSocketChannel = null ;
+        }
+        if(selector != null){
+            selector.close();
+            selector = null ;
+        }
     }
+
 
     /**
      *通过通知启动服务
@@ -133,7 +157,6 @@ public class ProxyServer extends Service {
             @Override
             public void onReceive(Context context, Intent intent) {
                 Log.i(TAG,"ready to accept one");
-//                acceptOne();
             }
         };
         this.registerReceiver(sendMsgReceive,intentFilter);
